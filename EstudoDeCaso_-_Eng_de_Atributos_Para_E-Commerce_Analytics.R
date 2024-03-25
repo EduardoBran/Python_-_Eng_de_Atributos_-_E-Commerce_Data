@@ -14,17 +14,19 @@ library(ggplot2)        # gera gráficos
 library(patchwork)      # unir gráficos
 library(corrplot)       # mapa de Correlação
 
+library(randomForest)
+
 
 
 
 #############################             Estudo de Caso             #############################
 
 
-###  Engenharia de Atributos Para E-Commerce Analytics
+####  Engenharia de Atributos Para E-Commerce Analytics
 
 
 
-## Objetivo:
+### Objetivo:
 
 # - Este Estudo de Caso é uma continuação do trabalho iniciado no capítulo anterior.
 
@@ -63,9 +65,14 @@ head(df)
 
 analise_inicial <- function(dataframe_recebido) {  # para encotrar linhas com caracter especial, vá para o fim do script
   # Sumário
+  cat("\n\n####  DIMENSÕES  ####\n\n")
   print(dim(dataframe_recebido))
+  cat("\n\n\n####  INFO  ####\n\n")
   print(str(dataframe_recebido))
+  cat("\n\n\n####  SUMÁRIO  ####\n\n")
   print(summary(dataframe_recebido))
+  cat("\n\n\n####  VERIFICANDO QTD DE LINHAS DUPLICADAS  ####\n\n")
+  print(sum(duplicated(dataframe_recebido)))
   cat("\n\n\n####  VERIFICANDO VALORES NA  ####\n\n")
   valores_na <- colSums(is.na(dataframe_recebido))
   if(any(valores_na > 0)) {
@@ -128,13 +135,12 @@ df_target <- df %>%
 
 
 
-#### Limpeza De Dados
+##################################    Limpeza De Dados    ################################## 
 
 
-## Tratamento de Valores ausentes
+#### Tratamento de Valores ausentes
 
-# - Atenção -> Valor ausente significa ausência de informação e não ausência de dado!
-
+##  -> Atenção: Valor ausente significa ausência de informação e não ausência de dado!
 # - O tratamento pode ser feito antes, durante ou depois da Análise Exploratória, mas idealmente deve ser feito antes da Engenharia de Atributos.
 #   Mas fique atento: a Engenharia de Atributos e o Pré-Processamento podem gerar valores ausentes, o que precisa ser tratado.
 
@@ -146,5 +152,221 @@ colSums(is.na(df))
 
 
 
-## Tratamento de Valores Duplicados
 
+
+#### Tratamento de Valores Duplicados
+
+##  -> Atenção: Valores duplicados significam duplicidade dos dados em toda a linha (todo o registro).
+# - O tratamento pode ser feito antes, durante ou depois da Análise Exploratória, mas idealmente deve ser feito antes da Engenharia de Atributos.
+
+sum(duplicated(df))
+
+
+
+
+
+#### Tratamento de Valores Outliers
+
+
+## Tratando Uma Variável Específica "desconto" (depois tratamos todas de uma vez)
+
+# Verificando Média e Desvio Padrão
+df_desconto <- df %>% 
+  select(desconto) %>% 
+  summarise(Media = mean(desconto),
+            Desvio_Padrao = sd(desconto))
+df_desconto
+
+# Histograma
+hist(df$desconto)
+
+# Calcula os limites superior e inferior
+# (Um valor outlier é aquele que está abaixo do limite inferior ou acima do limite superior)
+
+limite_superior = df_desconto$Media + 3 * df_desconto$Desvio_Padrao
+cat("Limite superior:", limite_superior)
+limite_inferior = df_desconto$Media - 3 * df_desconto$Desvio_Padrao
+cat("Limite inferior:", limite_inferior)
+
+# Filtra o dataframe removendo os registros com outliers na coluna desconto
+dim(df)
+df <- df %>%
+  filter(desconto > limite_inferior & desconto < limite_superior)
+dim(df)
+
+
+## Tratando Todas as Variáveis Numéricas (exceto desconto)
+
+# Nomes das colunas numéricas de interesse
+nums2 <- c("numero_chamadas_cliente", 
+           "avaliacao_cliente", 
+           "compras_anteriores", 
+           "custo_produto", 
+           "peso_gramas")
+
+# Calculando z-scores e removendo outliers
+df_filtrado <- df %>%
+  # Calcula o z-score para cada coluna numérica
+  mutate(across(all_of(nums2), list(z = ~ (.-mean(.))/sd(.)), .names = "{.col}_zscore")) %>%         # " across(where(is.numeric) " - (todas var numéricas)
+  # Filtra linhas removendo outliers (qualquer z-score fora de [-3, 3])
+  filter(if_all(ends_with("zscore"), ~ abs(.) < 3)) %>%
+  # Remove as colunas de z-score adicionadas anteriormente
+  select(-ends_with("zscore"))
+
+# Comparando as dimensões antes e depois do filtro
+cat("Dimensões do DataFrame antes do filtro: ", dim(df), "\n")
+cat("Dimensões do DataFrame após filtrar outliers: ", dim(df_filtrado), "\n")
+
+df <- df_filtrado
+
+rm(limite_inferior, limite_superior, nums2, df_filtrado)
+
+
+
+
+
+#### Feature Selection
+
+##  -> Atenção: Aqui tomamos as decisões sobre quais variáveis serão usadas na Engenharia de Atributos.
+
+
+# Removendo variável ID
+df_sem_ID <- df[, !names(df) %in% c("ID")]
+
+
+## Utilizando modelo randomForest para o método de Feature Selection
+
+modelo <- randomForest(entregue_no_prazo ~ ., 
+                       data = df_sem_ID, 
+                       ntree = 100, nodesize = 10, importance = T)
+
+# Visualizando por números
+print(modelo$importance)
+
+# Visualizando por Gráficos
+varImpPlot(modelo)
+
+importancia_ordenada <- modelo$importance[order(-modelo$importance[, 1]), , drop = FALSE] 
+df_importancia <- data.frame(
+  Variavel = rownames(importancia_ordenada),
+  Importancia = importancia_ordenada[, 1]
+)
+ggplot(df_importancia, aes(x = reorder(Variavel, -Importancia), y = Importancia)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Importância das Variáveis", x = "Variável", y = "Importância") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10))
+
+rm(modelo, importancia_ordenada, df_importancia, df_sem_ID)
+
+
+# -> Com base nos gráficos seriam eliminadasas variáveis modo_envio, genero, prioridade_produto e avaliacao_cliente
+
+
+### Aplicando Feature Selection separadamente nas Variáveis NUméricas (correlação) e Variáveis Categóricas (gráficos)
+
+
+## Variáveis Numéricas (correlação)
+df_cor <- df %>% 
+  select(-ID, -corredor_armazem, -modo_envio, -prioridade_produto, -genero)
+
+corrplot(cor(df_cor),
+         method = "color",
+         type = "upper",
+         addCoef.col = 'springgreen2',
+         tl.col = "black",
+         tl.srt = 45)
+rm(df_cor)
+
+# -> Com base no critério de de que as variáveis que ultrapassaram o limite (+/- 0,05) na correlação com varíavel alvo/target (entregue_no_prazo) serão
+#    escolhidos para serem processados na Engenharia de Atributos, nesse caso foram as escolhidas as variáveis:
+#    numero_chamadas_cliente, custo_produto, compras_anteriores, desconto e peso_gramas
+
+
+## Variáveis Categóricas (gráficos de barras)
+
+# Gerando Gráficos
+df_long <- df_categoricas %>%
+  pivot_longer(cols = everything(), names_to = "Variavel", values_to = "Categoria")
+
+ggplot(df_long, aes(x = Categoria, fill = Categoria)) +
+  geom_bar() +
+  facet_wrap(~ Variavel, scales = "free_x", nrow = 2) +
+  labs(title = "Distribuição das Variáveis Categóricas") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 12)) +
+  xlab("Categoria") +
+  ylab("Contagem") +
+  guides(fill=guide_legend(title="Categoria")) # Adiciona a legenda de volta, se necessário
+
+rm(df_long)
+
+# -> Com base nos gráficos percebe-se que a variável genêro está praticamente balancedada, desta forma ela não impactaria no resultado final.
+
+
+# -> Para ficar igual ao curso seriam ELIMINADAS as variáveis "avaliacao_cliente" e "genero"
+
+
+
+
+
+### Obs: Como as tarefas a seguir são complexas, demonstraremos apenas como algumas colunas. Fique à vontade para refazer a Engenharia de Atributos 
+###      usando todas as colunas selecionadas conforme regras definidas acima.
+
+
+
+
+
+#### Feature Extraction (criando novas variáveis)
+
+## -> ATENÇÃO: Aqui fazemos a extração de novas variáveis a partir da informação contida em outras variáveis.
+
+
+# Criando uma cópia
+df_eng <- df %>% select(-ID)
+str(df_eng)
+names(df_eng)
+
+
+## Utilizando variável prioridade_produto
+
+# Performance de Envio do Produto Por Prioridade do Produto
+
+# -> Todo atraso no envio dos produtos é igual, ou seja, tem a mesma proporção? A prioridade de envio dos produtos gera mais ou menos atrasos?
+# -> Criaremos uma nova variável que representa a performance do envio do produto com base na seguinte regra de negócio (levels):
+  
+# Se a prioridade do produto era alta e houve atraso no envio, o atraso é crítico.
+# Se a prioridade do produto era média e houve atraso no envio, o atraso é problemático.
+# Se a prioridade do produto era baixa e houve atraso no envio, o atraso é tolerável.
+# Outra opção significa que o envio foi feito no prazo e não apresenta problema.
+
+
+# Criando nova coluna "performance_prioridade_envio" e preenchendo com valores NA
+df_eng$performance_prioridade_envio <- NA
+
+# Alimentando nova coluna
+df_eng$performance_prioridade_envio <- ifelse(
+  df_eng$prioridade_produto == 'alta' & df_eng$entregue_no_prazo == 0, "Atraso Crítico",
+  ifelse(
+    df_eng$prioridade_produto == 'media' & df_eng$entregue_no_prazo == 0, "Atraso Problemático",
+    ifelse(
+      df_eng$prioridade_produto == 'baixa' & df_eng$entregue_no_prazo == 0, "Atraso Tolerável",
+      "Não Houve Atraso"
+    )
+  )
+)
+df_eng$performance_prioridade_envio <- as.factor(df_eng$performance_prioridade_envio)
+
+# Visualizando
+summary(df_eng$performance_prioridade_envio)
+
+
+## Realizando Análise na nova variável performance_prioridade_envio
+
+df_report1 <- df_eng %>% 
+  group_by(performance_prioridade_envio, entregue_no_prazo) %>% 
+  summarise(count = n(), .groups = "drop") %>% 
+  as.data.frame()
+
+df_report1
