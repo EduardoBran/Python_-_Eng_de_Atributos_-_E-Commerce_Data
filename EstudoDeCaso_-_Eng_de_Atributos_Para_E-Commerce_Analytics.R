@@ -362,11 +362,44 @@ df_eng$performance_prioridade_envio <- as.factor(df_eng$performance_prioridade_e
 summary(df_eng$performance_prioridade_envio)
 
 
-## Realizando Análise na nova variável performance_prioridade_envio
 
+## Criando um novo DataFrame de Análise para a nova variável performance_prioridade_envio
+
+# Gerando um dataframe com as análises
 df_report1 <- df_eng %>% 
   group_by(performance_prioridade_envio, entregue_no_prazo) %>% 
-  summarise(count = n(), .groups = "drop") %>% 
+  summarise(contagem = n(), .groups = "drop") %>% 
   as.data.frame()
-
 df_report1
+
+# Aplicando Pivot ("girando os dados", transformando linhas em colunas e colunas em linhas)
+df_report1 <- df_report1 %>%
+  pivot_wider(names_from = entregue_no_prazo, 
+              values_from = contagem) %>% 
+  as.data.frame()
+df_report1
+
+# Renomenado Colunas
+names(df_report1) <- c('Status_do_Envio', 'Total_Atraso', 'Total_no_Prazo')
+df_report1
+
+# Substituindo NA por zero
+df_report1 <- df_report1 %>%
+  mutate(Total_Atraso = if_else(is.na(Total_Atraso), 0, Total_Atraso),
+         Total_no_Prazo = if_else(is.na(Total_no_Prazo), 0, Total_no_Prazo))
+
+# Concatenando as colunas "Total Atraso" e "Total no Prazo" para criar uma nova coluna "Total" e remove as colunas "Total Atraso" e "Total no Prazo"
+df_report1 <- df_report1 %>%
+  mutate(Total = Total_Atraso + Total_no_Prazo) %>% 
+  select(-Total_Atraso, -Total_no_Prazo) %>% 
+  as.data.frame()
+df_report1
+str(df_report1)
+# Gráfico de Barras
+ggplot(df_report1, aes(x = Status_do_Envio, y = Total, fill = Status_do_Envio)) +
+  geom_col() +  # Usamos geom_col() para valores pré-tabulados
+  labs(x = "Status do Envio", y = "Total") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1")  # Usando uma paleta de cores para valores discretos
+
