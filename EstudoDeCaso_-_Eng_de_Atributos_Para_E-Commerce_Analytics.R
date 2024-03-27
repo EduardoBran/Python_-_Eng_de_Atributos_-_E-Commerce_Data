@@ -331,7 +331,7 @@ names(df_eng)
 
 ## Utilizando variável prioridade_produto
 
-# Performance de Envio do Produto Por Prioridade do Produto
+# Criando uma Nova Variável com a Performance de Envio do Produto Por Prioridade do Produto
 
 # -> Todo atraso no envio dos produtos é igual, ou seja, tem a mesma proporção? A prioridade de envio dos produtos gera mais ou menos atrasos?
 # -> Criaremos uma nova variável que representa a performance do envio do produto com base na seguinte regra de negócio (levels):
@@ -402,4 +402,57 @@ ggplot(df_report1, aes(x = Status_do_Envio, y = Total, fill = Status_do_Envio)) 
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_fill_brewer(palette = "Set1")  # Usando uma paleta de cores para valores discretos
+
+
+
+## Utilizando as variáveis modo_envio e prioridade_produto
+
+# Criando uma Nova Variável com a Performance de Envio do Produto Por Modo de Envio e Prioridade do Produto
+
+#  -> O modo de envio dos produtos associado à proridade de envio dos produtos, tem impacto no atraso dos produtos?
+#  -> Criaremos uma nova variável que representa a performance da variável alvo **entregue_no_prazo** por **modo_envio** e **prioridade_poduto** com base 
+#     nas seguintes regras de negócio:
+
+# Se a prioridade do produto era alta, o modo de envio era Navio e houve atraso no envio, o atraso é crítico por Navio.
+# Se a prioridade do produto era média, o modo de envio era Navio e houve atraso no envio, o atraso é problemático por Navio.
+# Se a prioridade do produto era baixa, o modo de envio era Navio e houve atraso no envio, o atraso é tolerável por Navio.
+# Se a prioridade do produto era alta, o modo de envio era Aviao e houve atraso no envio, o atraso é crítico por Aviao.
+# Se a prioridade do produto era média, o modo de envio era Aviao e houve atraso no envio, o atraso é problemático por Aviao.
+# Se a prioridade do produto era baixa, o modo de envio era Aviao e houve atraso no envio, o atraso é tolerável por Aviao.
+# Se a prioridade do produto era alta, o modo de envio era Caminhao e houve atraso no envio, o atraso é crítico por Caminhao.
+# Se a prioridade do produto era média, o modo de envio era Caminhao e houve atraso no envio, o atraso é problemático por Caminhao.
+# Se a prioridade do produto era baixa, o modo de envio era Caminhao e houve atraso no envio, o atraso é tolerável por Caminhao.
+# Outra opção significa que o envio foi feito no prazo e não apresenta problema.
+
+# Criando nova coluna "performance_modo_envio" e preenchendo com valores NA
+df_eng$performance_modo_envio <- NA
+
+# Alimentando nova coluna
+df_eng <- df_eng %>%
+  mutate(performance_modo_envio = case_when(
+    prioridade_produto == 'alta' & modo_envio == 'Navio' & entregue_no_prazo == 0 ~ "Atraso Crítico na Entrega Por Navio",
+    prioridade_produto == 'media' & modo_envio == 'Navio' & entregue_no_prazo == 0 ~ "Atraso Problemático na Entrega Por Navio",
+    prioridade_produto == 'baixa' & modo_envio == 'Navio' & entregue_no_prazo == 0 ~ "Atraso Tolerável na Entrega Por Navio",
+    prioridade_produto == 'alta' & modo_envio == 'Aviao' & entregue_no_prazo == 0 ~ "Atraso Crítico na Entrega Por Aviao",
+    prioridade_produto == 'media' & modo_envio == 'Aviao' & entregue_no_prazo == 0 ~ "Atraso Problemático na Entrega Por Aviao",
+    prioridade_produto == 'baixa' & modo_envio == 'Aviao' & entregue_no_prazo == 0 ~ "Atraso Tolerável na Entrega Por Aviao",
+    prioridade_produto == 'alta' & modo_envio == 'Caminhao' & entregue_no_prazo == 0 ~ "Atraso Crítico na Entrega Por Caminhao",
+    prioridade_produto == 'media' & modo_envio == 'Caminhao' & entregue_no_prazo == 0 ~ "Atraso Problemático na Entrega Por Caminhao",
+    prioridade_produto == 'baixa' & modo_envio == 'Caminhao' & entregue_no_prazo == 0 ~ "Atraso Tolerável na Entrega Por Caminhao",
+    TRUE ~ "Não Houve Atraso"
+  ))
+df_eng$performance_modo_envio <- as.factor(df_eng$performance_modo_envio)
+
+# Visualizando
+summary(df_eng$performance_modo_envio)
+
+
+## Criando um novo DataFrame de Análise para a nova variável performance_modo_envio
+
+# Gerando um dataframe com as análises
+df_report2 <- df_eng %>% 
+  group_by(performance_modo_envio, entregue_no_prazo) %>% 
+  summarise(contagem = n(), .groups = "drop") %>% 
+  as.data.frame()
+df_report2
 
