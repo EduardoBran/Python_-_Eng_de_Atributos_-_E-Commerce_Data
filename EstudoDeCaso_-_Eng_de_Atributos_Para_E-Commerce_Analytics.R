@@ -329,7 +329,8 @@ str(df_eng)
 names(df_eng)
 
 
-## Utilizando variável prioridade_produto
+
+## Utilizando as variáveis prioridade_produto e entregue_no_prazo
 
 # Criando uma Nova Variável com a Performance de Envio do Produto Por Prioridade do Produto
 
@@ -395,6 +396,7 @@ df_report1 <- df_report1 %>%
   as.data.frame()
 df_report1
 str(df_report1)
+
 # Gráfico de Barras
 ggplot(df_report1, aes(x = Status_do_Envio, y = Total, fill = Status_do_Envio)) +
   geom_col() +  # Usamos geom_col() para valores pré-tabulados
@@ -405,7 +407,8 @@ ggplot(df_report1, aes(x = Status_do_Envio, y = Total, fill = Status_do_Envio)) 
 
 
 
-## Utilizando as variáveis modo_envio e prioridade_produto
+
+## Utilizando as variáveis modo_envio, prioridade_produto e entregue_no_prazo
 
 # Criando uma Nova Variável com a Performance de Envio do Produto Por Modo de Envio e Prioridade do Produto
 
@@ -423,6 +426,7 @@ ggplot(df_report1, aes(x = Status_do_Envio, y = Total, fill = Status_do_Envio)) 
 # Se a prioridade do produto era média, o modo de envio era Caminhao e houve atraso no envio, o atraso é problemático por Caminhao.
 # Se a prioridade do produto era baixa, o modo de envio era Caminhao e houve atraso no envio, o atraso é tolerável por Caminhao.
 # Outra opção significa que o envio foi feito no prazo e não apresenta problema.
+
 
 # Criando nova coluna "performance_modo_envio" e preenchendo com valores NA
 df_eng$performance_modo_envio <- NA
@@ -455,4 +459,141 @@ df_report2 <- df_eng %>%
   summarise(contagem = n(), .groups = "drop") %>% 
   as.data.frame()
 df_report2
+
+# Aplicando Pivot ("girando os dados", transformando linhas em colunas e colunas em linhas)
+df_report2 <- df_report2 %>%
+  pivot_wider(names_from = entregue_no_prazo, 
+              values_from = contagem) %>% 
+  as.data.frame()
+df_report2
+
+# Renomenado Colunas
+names(df_report2) <- c('Status_do_Envio', 'Total_Atraso', 'Total_no_Prazo')
+df_report2
+
+# Substituindo NA por zero
+df_report2 <- df_report2 %>%
+  mutate(Total_Atraso = if_else(is.na(Total_Atraso), 0, Total_Atraso),
+         Total_no_Prazo = if_else(is.na(Total_no_Prazo), 0, Total_no_Prazo))
+
+# Concatenando as colunas "Total Atraso" e "Total no Prazo" para criar uma nova coluna "Total" e remove as colunas "Total Atraso" e "Total no Prazo"
+df_report2 <- df_report2 %>%
+  mutate(Total = Total_Atraso + Total_no_Prazo) %>% 
+  select(-Total_Atraso, -Total_no_Prazo) %>% 
+  as.data.frame()
+df_report2
+str(df_report2)
+
+# Gráfico de Barras
+ggplot(df_report2, aes(x = Status_do_Envio, y = Total, fill = Status_do_Envio)) +
+  geom_col() +
+  labs(x = "Status do Envio", y = "Total") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = rep(c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000"),
+                                 length.out = length(unique(df_report2$Status_do_Envio))))
+
+
+
+## Utilizando as variáveis desconto e entregue_no_prazo
+
+# Criando Novas Variáveis com a Performance de Envio dos Produtos Considerando os Descontos
+
+#  -> Há diferença na performance de envio dos produtos quando o produto recebe algum tipo de desconto?
+#  -> Criaremos duas novas variáveis.
+
+#  -> A primeira variávei será faixa_desconto e será criada usando dados da variável desconto.
+#  -> A segunda variável será performance_faixa_desconto e será criada usando dados da nova variável faixa_desocnto e entregue_no_prazo
+#  -> Criaremos as duas novas variáveis com base na seguinte regra de negócio:
+  
+##  Variável 1 - faixa_desconto
+
+# Desconto acima ou igual à média
+# Desconto abaixo da média
+
+## Variável 2 - performance_faixa_desconto
+
+# Se a faixa de desconto foi acima ou igual à média e houve atraso na entrega = "Atraso na Entrega com Desconto Acima da Média"
+# Se a faixa de desconto foi acima ou igual à e não houve atraso na entrega = "Entrega no Prazo com Desconto Acima da Média"
+# Se a faixa de desconto foi abaixo da média e houve atraso na entrega = "Atraso na Entrega com Desconto Abaixo da Média"
+# Se a faixa de desconto foi abaixo da média e não houve atraso na entrega = "Entrega no Prazo com Desconto Abaixo da Média"
+
+
+
+# Criando nova coluna "faixa_desconto" e preenchendo com valores NA
+df_eng$faixa_desconto <- NA
+
+# Alimentando nova coluna
+df_eng$faixa_desconto <- ifelse(
+  df_eng$desconto >= 12, "Desconto Acima da Média", "Desconto Abaixo da Média"
+)
+df_eng$faixa_desconto <- as.factor(df_eng$faixa_desconto)
+
+# Visualizando
+summary(df_eng$faixa_desconto)
+
+
+# Criando nova coluna "performance_faixa_desconto" e preenchendo com valores NA
+df_eng$performance_faixa_desconto <- NA
+
+# Alimentando nova coluna
+df_eng <- df_eng %>% 
+  mutate(performance_faixa_desconto = case_when(
+    faixa_desconto == "Desconto Acima da Média" & entregue_no_prazo == 0 ~ "Atraso na Entrega com Desconto Acima da Media",
+    faixa_desconto == "Desconto Abaixo da Média" & entregue_no_prazo == 0 ~ "Atraso na Entrega com Desconto Abaixo da Media",
+    faixa_desconto == "Desconto Acima da Média" & entregue_no_prazo == 1 ~ "Entrega no Prazo com Desconto Acima da Media",
+    faixa_desconto == "Desconto Abaixo da Média" & entregue_no_prazo == 1 ~ "Entrega no Prazo com Desconto Abaixo da Media",
+    TRUE ~ NA
+  ))
+df_eng$performance_faixa_desconto <- as.factor(df_eng$performance_faixa_desconto)
+
+# Visualizando
+summary(df_eng$performance_faixa_desconto)
+
+
+## Criando um novo DataFrame de Análise para a nova variável performance_modo_envio
+
+# Gerando um dataframe com as análises
+df_report3 <- df_eng %>% 
+  group_by(performance_faixa_desconto, entregue_no_prazo) %>% 
+  summarise(contagem = n(), .groups = "drop") %>% 
+  as.data.frame()
+df_report3
+
+# Aplicando Pivot ("girando os dados", transformando linhas em colunas e colunas em linhas)
+df_report3 <- df_report3 %>%
+  pivot_wider(names_from = entregue_no_prazo, 
+              values_from = contagem) %>% 
+  as.data.frame()
+df_report3
+
+# Renomenado Colunas
+names(df_report3) <- c('Status_do_Envio', 'Total_Atraso', 'Total_no_Prazo')
+df_report3
+
+# Substituindo NA por zero
+df_report3 <- df_report3 %>%
+  mutate(Total_Atraso = if_else(is.na(Total_Atraso), 0, Total_Atraso),
+         Total_no_Prazo = if_else(is.na(Total_no_Prazo), 0, Total_no_Prazo))
+
+# Concatenando as colunas "Total Atraso" e "Total no Prazo" para criar uma nova coluna "Total" e remove as colunas "Total Atraso" e "Total no Prazo"
+df_report3 <- df_report3 %>%
+  mutate(Total = Total_Atraso + Total_no_Prazo) %>% 
+  select(-Total_Atraso, -Total_no_Prazo) %>% 
+  as.data.frame()
+df_report3
+str(df_report3)
+
+# Gráfico de Barras
+ggplot(df_report3, aes(x = Status_do_Envio, y = Total, fill = Status_do_Envio)) +
+  geom_col() +  # Usamos geom_col() para valores pré-tabulados
+  labs(x = "Status do Envio", y = "Total") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1")  # Usando uma paleta de cores para valores discretos
+
+
+
+## Salvando o dataset
+write.csv(df_eng, "dados/df_eng.csv", row.names = FALSE)
 
