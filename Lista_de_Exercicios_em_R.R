@@ -19,7 +19,10 @@ library(randomForest)
 
 
 
+
 #############################             Lista de Exercícios             #############################
+
+
 
 
 
@@ -53,6 +56,10 @@ df_c
 
 # - Faça a concatenação dos dataframes a e b pelas linhas e crie um novo dataframe chamado df_ab_linha.
 
+# Concatenar os DataFrames pelas linhas
+df_ab_linha <- bind_rows(df_a, df_b)
+df_ab_linha
+
 
 
 
@@ -61,6 +68,9 @@ df_c
 
 # - Faça a concatenação dos dataframes a e b pelas colunas e crie um novo dataframe chamado df_ab_coluna.
 
+# Concatenar os DataFrames pelas colunas
+df_ab_coluna <- bind_cols(df_a, df_b)
+df_ab_coluna
 
 
 
@@ -68,6 +78,9 @@ df_c
 ## Exercício 3
 
 # - Faça o merge dos dataframes df_ab_linha e df_c usando a coluna id_disciplina
+
+df_merge_ex3 <- inner_join(df_ab_linha, df_c, by = 'id_disciplina')
+df_merge_ex3
 
 
 
@@ -77,13 +90,11 @@ df_c
 
 # - Faça o merge dos dataframes df_ab_linha e df_c pela coluna id_disciplina usando left e right
 
+merge_left <- left_join(df_ab_linha, df_c, by = 'id_disciplina')
+merge_right <- right_join(df_ab_linha, df_c, by = 'id_disciplina')
 
-
-
-
-
-## -> Merge outer join é a união externa completa que produz o conjunto de todos os registros na Tabela A e na Tabela B, com registros correspondentes
-##    de ambos os lados, quando disponíveis. Se não houver correspondência, o lado ausente conterá null.
+merge_left
+merge_right
 
 
 
@@ -92,7 +103,11 @@ df_c
 ## Exercício 5
 
 # - Faça o outer join entre os dataframes df_a e df_b usando a coluna id_disciplina
+#   (Merge outer join é a união externa completa que produz o conjunto de todos os registros na Tabela A e na Tabela B, com registros correspondentes
+#    de ambos os lados, quando disponíveis. Se não houver correspondência, o lado ausente conterá null.)
 
+merge_outer <- full_join(df_a, df_b, by = "id_disciplina")
+merge_outer
 
 
 
@@ -105,22 +120,10 @@ df_c
 
 
 
-## -> Merge inner join é a junção interna que produz apenas o conjunto de registros que correspondem na Tabela A e na Tabela B.
-
-
-
-
-
 ## Exercício 7
 
 # - Faça o merge inner join entre os dataframes df_a e df_a usando a coluna id_disciplina
-
-
-
-
-
-## -> Merge left join é a junção externa esquerda que produz um conjunto completo de registros da Tabela A, com os registros correspondentes
-##    (quando disponíveis) na Tabela B. Se não houver correspondência, o lado direito conterá nulo.
+#   (Merge inner join é a junção interna que produz apenas o conjunto de registros que correspondem na Tabela A e na Tabela B.)
 
 
 
@@ -129,7 +132,8 @@ df_c
 ## Exercício 8
 
 # - Faça o merge left join entre os dataframes df_a e df_a usando a coluna id_disciplina
-
+#   (Merge left join é a junção externa esquerda que produz um conjunto completo de registros da Tabela A, com os registros correspondentes,
+#    quando disponíveis, na Tabela B. Se não houver correspondência, o lado direito conterá nulo.)
 
 
 
@@ -142,15 +146,11 @@ df_c
 
 
 
-## -> O merge right join é contrário do left join.
-
-
-
-
-
 ## Exercício 10
 
 # - Faça o merge right join entre os dataframes df_a e df_a usando a coluna id_disciplina
+#   (O merge right join é contrário do left join.)
+
 #   Não deixar valores ausentes!
 
 
