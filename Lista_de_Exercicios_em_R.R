@@ -112,18 +112,32 @@ merge_outer
 
 
 
+
 ## Exercício 6
 
 # - O exercício 5 gera valores ausentes. Não deixe isso acontecer ao fazer o merge!
 
+# Realizar o outer join entre df_a e df_b usando full_join do dplyr
+merge_outer_join_sem_na <- full_join(df_a, df_b, by = "id_disciplina")
+
+# Coalescer as colunas de nome e sobrenome
+merge_outer_join_sem_na <- merge_outer_join_sem_na %>%
+  mutate(nome = coalesce(nome.x, nome.y),
+         sobrenome = coalesce(sobrenome.x, sobrenome.y)) %>%
+  select(id_disciplina, nome, sobrenome)
+merge_outer_join_sem_na
 
 
 
 
 ## Exercício 7
 
-# - Faça o merge inner join entre os dataframes df_a e df_a usando a coluna id_disciplina
+# - Faça o merge inner join entre os dataframes df_a e df_b usando a coluna id_disciplina
 #   (Merge inner join é a junção interna que produz apenas o conjunto de registros que correspondem na Tabela A e na Tabela B.)
+
+# Realizar o inner join entre df_a e df_b usando inner_join do dplyr
+merge_inner_join <- inner_join(df_a, df_b, by = "id_disciplina")
+merge_inner_join
 
 
 
@@ -131,9 +145,13 @@ merge_outer
 
 ## Exercício 8
 
-# - Faça o merge left join entre os dataframes df_a e df_a usando a coluna id_disciplina
+# - Faça o merge left join entre os dataframes df_a e df_b usando a coluna id_disciplina
 #   (Merge left join é a junção externa esquerda que produz um conjunto completo de registros da Tabela A, com os registros correspondentes,
 #    quando disponíveis, na Tabela B. Se não houver correspondência, o lado direito conterá nulo.)
+
+# Realizar o left join entre df_ab_linha e df_c usando left_join do dplyr
+merge_left <- left_join(df_ab_linha, df_c, by = 'id_disciplina')
+
 
 
 
@@ -142,16 +160,31 @@ merge_outer
 
 # - O exercício 8 gera valores ausentes. Não deixe isso acontecer ao fazer o merge!
 
+# Coalescer as colunas de nome e sobrenome
+merge_left_sem_na <- merge_left %>%
+  mutate(nome = coalesce(df_ab_linha$nome, df_c$nome),
+         sobrenome = coalesce(df_ab_linha$sobrenome, df_c$sobrenome)) %>%
+  select(id_disciplina, nome, sobrenome)
+merge_left_sem_na
 
 
 
 
 ## Exercício 10
 
-# - Faça o merge right join entre os dataframes df_a e df_a usando a coluna id_disciplina
+# - Faça o merge right join entre os dataframes df_a e df_b usando a coluna id_disciplina
 #   (O merge right join é contrário do left join.)
 
 #   Não deixar valores ausentes!
+
+merge_right_sem_na <- right_join(df_ab_linha, df_c, by = 'id_disciplina')
+merge_right_sem_na
+
+merge_right_sem_na <- merge_right_sem_na %>%
+  mutate(nome = coalesce(df_ab_linha$nome, df_c$nome),
+         sobrenome = coalesce(df_ab_linha$sobrenome, df_c$sobrenome)) %>%
+  select(id_disciplina, nome, sobrenome)
+merge_left_sem_na
 
 
 
@@ -163,14 +196,14 @@ merge_outer
 # - Adicione um sufixo para identificar os nomes das colunas.
 #   Não deixar valores ausentes!
 
+merge_right_sufix <- right_join(df_ab_linha, df_c, by = 'id_disciplina', suffix = c('_df_a', '_df_b'))
+merge_right_sufix
 
 
 
 
 ## Exercício 12
 
-# - Faça o merge dos dataframes df_a e df_b com base no índice.
-
-
-
+# Realizar o merge com base no índice
+merge_index <- merge(df_a, df_b, by = "id_disciplina")
 
